@@ -31,7 +31,7 @@ def extract_data(this_file):
     time = None
     val = None
 
-    date_pattern = '(?P<date>\d+-\d+-\d+).'
+    date_pattern = '(?P<date>\d+-\d+-\d+)'
     weight_pattern = '(?P<weight>\(\d+.\d+\))'
     #blood_pressure_pattern = '(\d{1,2})(\d{2,3}-\d+)(?!\d+)'
     blood_pressure_pattern = '(?P<pressure>(\d{1,2})(\d{2,3}-\d+)(?!\d+))'
@@ -44,9 +44,15 @@ def extract_data(this_file):
     blood_sugar_RE = re.compile(blood_sugar_pattern)
 
     weight_dict = {}
+    weight2_dict = {}
     pressure_dict = {}
+    pressure2_dict = {}
     sugar_dict = {}
+    sugar2_dict = {}
+    bmi_dict = {}
+    bmi2_dict = {}
 
+    date_list = []
     weight_list = []
     pressure_h_list = []
     pressure_l_list = []
@@ -63,7 +69,10 @@ def extract_data(this_file):
 
         if date_match:
             date = date_match.groupdict()['date']
-            print('Date: {0}'.format(date))
+            date_list.append(str(date))
+            print('Date: {0}'.format(str(date)))
+            morning_val = 0
+            evening_val = 0
         if weight_match:
             weight = weight_match.groupdict()['weight']
             if weight.startswith('('):
@@ -72,7 +81,8 @@ def extract_data(this_file):
                 weight = weight[:-1]
             print('\tWeight: {0}'.format(weight))
             #weight_dict[date] = weight
-            weight_list.append(weight)
+            weight_list.append(float(weight))
+            #weight2_dict[date] = weight
         if blood_pressure_match:
             pressure = blood_pressure_match.groupdict()['pressure']
             if pressure.endswith('\\n'):
@@ -80,35 +90,51 @@ def extract_data(this_file):
             print('\tPressure: {0}'.format(pressure))
             #pressure_dict[date] = pressure
             pressure_h, pressure_l = pressure.split('-')
-            pressure_h_list.append(pressure_h)
-            pressure_l_list.append(pressure_l)
+            pressure_h_list.append(float(pressure_h))
+            pressure_l_list.append(float(pressure_l))
+            #pressure2_dict[date] = [pressure_h, pressure_l]
         if blood_sugar_match:
             time = blood_sugar_match.groupdict()['time']
             val = blood_sugar_match.groupdict()['val']
             print('\tSugar: {0},{1}'.format(time,val))
             if len(time) < 5:
                 #sugar_morning_dict[date] = val
-                sugar_morning_list.append(val)
+                sugar_morning_list.append(int(val))
+                morning_val = val
             if len(time) >=5:
                 #sugar_evening_dict[date] = val
-                sugar_evening_list.append(val)
+                sugar_evening_list.append(int(val))
+                evening_val = val
+            #if morning_val != 0 and evening_val != 0:
+            #    sugar2_dict[date] = [morning_val, evening_val]
 
         #print('Date: {0}, Weight: {1}, Pressure: {2}, Sugar: {3}'.format(date, weight, pressure, '{0},{1}'.format(time,val)))
 
     today = datetime.date.today()
     fmt_today = '{:%Y%m%d}'.format(today)
     weight_path = 'weight_{0}.json'.format(fmt_today)
+    weight2_path = 'weight2_{0}.json'.format(fmt_today)
     pressure_path = 'pressure_{0}.json'.format(fmt_today)
+    pressure2_path = 'pressure2_{0}.json'.format(fmt_today)
     sugar_path = 'sugar_{0}.json'.format(fmt_today)
+    sugar2_path = 'sugar2_{0}.json'.format(fmt_today)
+    bmi_path = 'bmi_{0}.json'.format(fmt_today)
+    bmi2_path = 'bmi2_{0}.json'.format(fmt_today)
 
     json_dict = {}
     weight_dict['weight'] = [range(0,len(weight_list)), weight_list]
     weight_dict['weight.sample'] = down_sample(weight_dict, 'weight', 5)
+    weight2_dict['weight'] = [date_list, weight_list]
 
     pressure_dict['high'] = [range(0, len(pressure_h_list)), pressure_h_list]
     pressure_dict['low'] = [range(0, len(pressure_l_list)), pressure_l_list]
+    pressure2_dict['high'] = [date_list, pressure_h_list]
+    pressure2_dict['low'] = [date_list, pressure_l_list]
+
     sugar_dict['morning'] = [range(0, len(sugar_morning_list)+1), sugar_morning_list]
     sugar_dict['evening'] = [range(0, len(sugar_evening_list)), sugar_evening_list]
+    sugar2_dict['morning'] = [date_list, sugar_morning_list]
+    sugar2_dict['evening'] = [date_list, sugar_evening_list]
 
     sugar_dict['morning.sample'] = down_sample(sugar_dict, 'morning', 15)
     sugar_dict['evening.sample'] = down_sample(sugar_dict, 'evening', 15)
@@ -142,11 +168,27 @@ def extract_data(this_file):
     weight_avg_list = one_list_rolling_avg(weight_list)
     weight_dict['rolling avg'] = [range(0, len(weight_avg_list)), weight_avg_list]
 
+    bmi_list = []
+    height = (6*12) + 2
+    for this_weight in weight_list:
+        bmi_list.append(calc_bmi(height, this_weight))
+    bmi_dict['bmi'] = [range(0, len(bmi_list)), bmi_list]
+    bmi2_dict['bmi'] = [date_list, bmi_list]
+
     writeToJson(weight_dict, weight_path)
     writeToJson(pressure_dict, pressure_path)
     writeToJson(sugar_dict, sugar_path)
+    writeToJson(bmi_dict, bmi_path)
+
+    writeToJson(weight2_dict, weight2_path)
+    writeToJson(pressure2_dict, pressure2_path)
+    writeToJson(sugar2_dict, sugar2_path)
+    writeToJson(bmi2_dict, bmi2_path)
 
     return weight_dict, pressure_dict, sugar_dict
+
+def calc_bmi(height, weight):
+    return (float(weight) * 703.0) / (float(height)**2)
 
 def numpy_polyfit(xes, yes, pts):
     import numpy as np
