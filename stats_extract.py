@@ -1,4 +1,4 @@
-#!/usr/bin python
+#!/usr/bin/python
 
 ##EXAMPLE USAGE:
 ## $ python stats_extract.py
@@ -213,7 +213,7 @@ def two_list_avg(first_list, second_list):
         for x in range(1, diff):
             p = s + x
             print p
-            second_list.append(first_list[p+1])
+            second_list.append(first_list[p])
             print('appending {0} to position {1}'.format(first_list[p-1], p))
     elif f < s:
         diff = s - f
@@ -233,6 +233,35 @@ def two_list_avg(first_list, second_list):
             avg_list.append(myAvg)
 
     return avg_list
+
+def normalize_two_lists(first_list, second_list):
+    f = len(first_list)
+    s = len(second_list)
+    if f > s:
+        print('first list is longer')
+        diff = f - s
+        print('diff = {0}'.format(diff))
+        for x in range(0, diff):
+            print('x: {0}'.format(x))
+            p = s + x
+            print('p: {0}'.format(p))
+            print('appending: {0}'.format(first_list[p]))
+            second_list.append(first_list[p])
+    elif f < s:
+        print('second list is longer')
+        diff = s - f
+        print('diff = {0}'.format(diff))
+        for x in range(0, diff):
+            print('x: {0}'.format(x))
+            p = f + x
+            print('p: {0}'.format(p))
+            print('appending: {0}'.format(second_list[p]))
+            first_list.append(second_list[p])
+    f = len(first_list)
+    s = len(second_list)
+    if f == s:
+        print('successful normalization')
+    return first_list, second_list
 
 def one_list_rolling_avg(this_list):
     avg_list = []
@@ -292,6 +321,8 @@ def down_sample(this_dict, key, target_samples):
     import math
     print('len x_values: {0}'.format(len(this_dict[key][0])))
     divisions = math.ceil((len(this_dict[key][1])) / float(target_samples))
+    if int(divisions) == 0:
+        divisions = 1.0
     print('divisions: {0}'.format(divisions))
     x_samples = range(this_dict[key][0][0], this_dict[key][0][-1], int(divisions))
     x_samples.append(this_dict[key][0][-1])
@@ -310,7 +341,11 @@ def down_sample(this_dict, key, target_samples):
 
 if __name__ == '__main__':
     #extract_data('/home/james/scripts/statsChart/stats_test_data.txt')
-    extract_data('/home/james/scripts/statsChart/blood_sugar_all.txt')
+    data_file = '/home/james/scripts/statsChart/data/blood_sugar_all.txt'
+    if os.path.exists(data_file):
+        extract_data(data_file)
+    else:
+        print('no data file found')
 
 
 
