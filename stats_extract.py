@@ -125,12 +125,15 @@ def extract_data(this_file):
     weight_dict['weight'] = [range(0,len(weight_list)), weight_list]
     weight_dict['weight.sample'] = down_sample2(weight_dict, 'weight', 5)
     weight2_dict['weight'] = [date_list, weight_list]
+    weight2_dict['wieght.sample'] = down_sample2(weight2_dict, 'weight', 5)
 
     ph_norm_list, pl_norm_list = normalize_two_lists(pressure_h_list, pressure_l_list)
     pressure_dict['high'] = [range(0, len(pressure_h_list)), ph_norm_list]
     pressure_dict['low'] = [range(0, len(pressure_l_list)), pl_norm_list]
     pressure2_dict['high'] = [date_list, ph_norm_list]
     pressure2_dict['low'] = [date_list, pl_norm_list]
+    pressure2_dict['high.sample'] = down_sample2(pressure2_dict, 'high', 5)
+    pressure2_dict['low.sample'] = down_sample2(pressure2_dict, 'low', 5)
 
 
     sm_norm_list, se_norm_list = normalize_two_lists(sugar_morning_list, sugar_evening_list)
@@ -138,13 +141,15 @@ def extract_data(this_file):
     sugar_dict['evening'] = [range(0, len(se_norm_list)), se_norm_list]
     sugar2_dict['morning'] = [date_list, sm_norm_list]
     sugar2_dict['evening'] = [date_list, se_norm_list]
+    sugar2_dict['morn.sample'] = down_sample2(sugar2_dict, 'morning', 10)
+    sugar2_dict['even.sample'] = down_sample2(sugar2_dict, 'evening', 10)
 
-    sugar_dict['morning.sample'] = down_sample2(sugar_dict, 'morning', 15)
-    sugar_dict['evening.sample'] = down_sample2(sugar_dict, 'evening', 15)
+    #sugar_dict['morning.sample'] = down_sample2(sugar_dict, 'morning', 15)
+    #sugar_dict['evening.sample'] = down_sample2(sugar_dict, 'evening', 15)
  
     sugar_avg_list = two_list_avg(sm_norm_list, se_norm_list)
     sugar_dict['daily.avg'] = [range(0, len(sugar_avg_list)), sugar_avg_list]
-    
+
     #sugar_rolling_avg_list = one_list_rolling_avg(sugar_avg_list)
     #sugar_dict['rolling.avg'] = [range(0, len(sugar_rolling_avg_list)), sugar_rolling_avg_list]
 
@@ -152,8 +157,10 @@ def extract_data(this_file):
     sugar_dict['daily.avg.sample'] = sugar_sample_list
 
     del sugar_dict['daily.avg']
-    del sugar_dict['morning']
-    del sugar_dict['evening']
+    #del sugar_dict['morning']
+    #del sugar_dict['evening']
+    del sugar2_dict['morning']
+    del sugar2_dict['evening']
 
     #pressure_h_avg_list = one_list_rolling_avg(pressure_h_list)
     #pressure_l_avg_list = one_list_rolling_avg(pressure_l_list)
@@ -340,9 +347,13 @@ def down_sample(this_dict, key, target_samples):
     #return sample_dict
 
 def down_sample2(this_dict, key, incr):
-    import math
+    print(key)
     print('len x_values: {0}'.format(len(this_dict[key][0])))
     print('len y_values: {0}'.format(len(this_dict[key][-1])))
+    if len(this_dict[key][0]) != len(this_dict[key][-1]):
+        calc_start = len(this_dict[key][0]) - len(this_dict[key][-1])
+        this_dict[key][0] = this_dict[key][0][calc_start:]
+        print(this_dict[key][0])
     i = 0
     accumulator = 0.0
     x_samples = []
@@ -357,10 +368,10 @@ def down_sample2(this_dict, key, incr):
         elif i % incr == 0:
             #print('accumulate: {0}'.format(this_y))
             accumulator += this_y
-            print('\navg: {0}'.format(accumulator / float(incr)))
-            x_samples.append(i)
+            #print('\navg: {0}'.format(accumulator / float(incr)))
+            x_samples.append(this_dict[key][0][i])
             y_samples.append(accumulator / float(incr))
-            print('new sample: x:{0} y:{1}\n\n'.format(i, accumulator / float(incr)))
+            #print('new sample: x:{0} y:{1}\n\n'.format(i, accumulator / float(incr)))
             accumulator = 0
             last_value = False
         else:
@@ -368,13 +379,13 @@ def down_sample2(this_dict, key, incr):
             accumulator += this_y
             last_value = True
         i += 1
-        print('orig data: x:{0} y:{1}'.format(i, this_y))
+        #print('orig data: x:{0} y:{1}'.format(i, this_y))
     if last_value:
         x_samples.append(this_dict[key][0][-1])
         y_samples.append(this_dict[key][-1][-1])
 
-    print('len of x_samples: {0}'.format(len(x_samples)))
-    print('len of y_samples: {0}'.format(len(y_samples)))
+    #print('len of x_samples: {0}'.format(len(x_samples)))
+    #print('len of y_samples: {0}'.format(len(y_samples)))
     return [x_samples, y_samples]
 
 if __name__ == '__main__':
