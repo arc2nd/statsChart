@@ -8,17 +8,18 @@
 ## $ ./xyPlot.py -g line -l --wi 11 --he 4 -t 'Blood Sugar' -f ../statsChart/sugar_20170701.json 
 
 
-import json
 import os
 import re
 import datetime
+
+import listProcessing as lp
 
 test_date = '06-26-17'
 test_weight = '(180.2)'
 test_pressure = '118-62'
 test_sugar = '17.17.     122'
 
-def extract_data(this_file):
+def extract_data(this_file, sample_rate=7):
     if this_file != '' and os.path.exists(this_file):
         with open(this_file, 'r') as fp:
             file_contents = fp.read()
@@ -49,6 +50,7 @@ def extract_data(this_file):
     pressure2_dict = {}
     sugar_dict = {}
     sugar2_dict = {}
+    sugarTime_dict = {}
     bmi_dict = {}
     bmi2_dict = {}
 
@@ -57,8 +59,12 @@ def extract_data(this_file):
     pressure_h_list = []
     pressure_l_list = []
     sugar_morning_list = []
+    sugar_mTime_list = []
     sugar_evening_list = []
+    sugar_eTime_list=[]
 
+    ##This is the part where we run out text file through the
+    ##Regular Expressions and extract all of the data into lists
     for this_line in file_contents.splitlines():
         splits = list(set(this_line.split(' ')))
         
@@ -98,10 +104,12 @@ def extract_data(this_file):
             val = blood_sugar_match.groupdict()['val']
             print('\tSugar: {0},{1}'.format(time,val))
             if len(time) < 5:
+                sugar_mTime_list.append(time)
                 #sugar_morning_dict[date] = val
                 sugar_morning_list.append(int(val))
                 morning_val = val
             if len(time) >=5:
+                sugar_eTime_list.append(time)
                 #sugar_evening_dict[date] = val
                 sugar_evening_list.append(int(val))
                 evening_val = val
@@ -110,6 +118,7 @@ def extract_data(this_file):
 
         #print('Date: {0}, Weight: {1}, Pressure: {2}, Sugar: {3}'.format(date, weight, pressure, '{0},{1}'.format(time,val)))
 
+    ##Set up some variables
     today = datetime.date.today()
     fmt_today = '{:%Y%m%d}'.format(today)
     weight_path = 'weight_{0}.json'.format(fmt_today)
@@ -121,64 +130,79 @@ def extract_data(this_file):
     bmi_path = 'bmi_{0}.json'.format(fmt_today)
     bmi2_path = 'bmi2_{0}.json'.format(fmt_today)
 
-    json_dict = {}
+    ##Put data into the weight dict (don't need to normalize as it's only one list)
     weight_dict['weight'] = [range(0,len(weight_list)), weight_list]
-    weight_dict['weight.sample'] = down_sample2(weight_dict, 'weight', 5)
+    weight_dict['weight.sample'] = lp.down_sample2(weight_dict, 'weight', sample_rate)
     weight2_dict['weight'] = [date_list, weight_list]
-    weight2_dict['wieght.sample'] = down_sample2(weight2_dict, 'weight', 5)
+    weight2_dict['wieght.sample'] = lp.down_sample2(weight2_dict, 'weight', sample_rate)
 
-    ph_norm_list, pl_norm_list = normalize_two_lists(pressure_h_list, pressure_l_list)
+    ##Put data into the pressure dict
+    ##      make sure the lists are of equal length
+    ph_norm_list, pl_norm_list = lp.normalize_two_lists(pressure_h_list, pressure_l_list)
+
+    ##      put data and sampled data into pressure dict
     pressure_dict['high'] = [range(0, len(pressure_h_list)), ph_norm_list]
     pressure_dict['low'] = [range(0, len(pressure_l_list)), pl_norm_list]
+    pressure_h_sample_list = lp.down_sample2(pressure_dict, 'high', sample_rate)
+    pressure_l_sample_list = lp.down_sample2(pressure_dict, 'low', sample_rate)
+    pressure_dict['high.sample'] = pressure_h_sample_list
+    pressure_dict['low.sample'] = pressure_l_sample_list
+
+    ##      put data and sampled data into pressure2 dict
     pressure2_dict['high'] = [date_list, ph_norm_list]
     pressure2_dict['low'] = [date_list, pl_norm_list]
-    pressure2_dict['high.sample'] = down_sample2(pressure2_dict, 'high', 5)
-    pressure2_dict['low.sample'] = down_sample2(pressure2_dict, 'low', 5)
+    pressure2_dict['high.sample'] = lp.down_sample2(pressure2_dict, 'high', sample_rate)
+    pressure2_dict['low.sample'] = lp.down_sample2(pressure2_dict, 'low', sample_rate)
 
+    ##Put data into the sugar and sugar2 dicts
+    ##      make sure the lists are of equal length
+    sm_norm_list, se_norm_list = lp.normalize_two_lists(sugar_morning_list, sugar_evening_list)
 
-    sm_norm_list, se_norm_list = normalize_two_lists(sugar_morning_list, sugar_evening_list)
-    sugar_dict['morning'] = [range(0, len(sm_norm_list)), sm_norm_list]
-    sugar_dict['evening'] = [range(0, len(se_norm_list)), se_norm_list]
+    ##      add morning and evening to sugar dict and sugar2 dict
+    sugar_dict['morning'] = [range(0, len(sm_norm_list)), sm_norm_list] ##0 to end of list
+    sugar_dict['evening'] = [range(0, len(se_norm_list)), se_norm_list] ##0 to end of list
     sugar2_dict['morning'] = [date_list, sm_norm_list]
     sugar2_dict['evening'] = [date_list, se_norm_list]
-    sugar2_dict['morn.sample'] = down_sample2(sugar2_dict, 'morning', 10)
-    sugar2_dict['even.sample'] = down_sample2(sugar2_dict, 'evening', 10)
 
-    #sugar_dict['morning.sample'] = down_sample2(sugar_dict, 'morning', 15)
-    #sugar_dict['evening.sample'] = down_sample2(sugar_dict, 'evening', 15)
- 
-    sugar_avg_list = two_list_avg(sm_norm_list, se_norm_list)
+    ##      average the morning and evening sugar together and then sample it
+    sugar_avg_list = lp.two_list_avg(sm_norm_list, se_norm_list)
     sugar_dict['daily.avg'] = [range(0, len(sugar_avg_list)), sugar_avg_list]
-
-    #sugar_rolling_avg_list = one_list_rolling_avg(sugar_avg_list)
-    #sugar_dict['rolling.avg'] = [range(0, len(sugar_rolling_avg_list)), sugar_rolling_avg_list]
-
-    sugar_sample_list = down_sample2(sugar_dict, 'daily.avg', 15)
+    sugar_sample_list = lp.down_sample2(sugar_dict, 'daily.avg', sample_rate)
     sugar_dict['daily.avg.sample'] = sugar_sample_list
 
+    ##      do some down_sampling of morning and evening in sugar2 dict
+    sugar2_dict['morn.sample'] = lp.down_sample2(sugar2_dict, 'morning', sample_rate)
+    sugar2_dict['even.sample'] = lp.down_sample2(sugar2_dict, 'evening', sample_rate)
+
+    ##      find the deltas between when readings were taken
+    morning_deltas_list = []
+    evening_deltas_list = []
+    for this_time in sugar_mTime_list:
+        morning_deltas_list.append(lp.time_delta(this_time, '6.30')) ##reference time is six thirty in the morning
+    for this_time in sugar_eTime_list:
+        evening_deltas_list.append(lp.time_delta(this_time, '18.30')) ##reference time is six thirty in the evening
+    sugarTime_dict['m_time'] = [date_list, morning_deltas_list]
+    sugarTime_dict['e_time'] = [date_list, evening_deltas_list]
+
+    ##      sample the delta between readings
+    sugarTime_dict['m_time.sample'] = lp.down_sample2(sugarTime_dict, 'm_time', sample_rate)
+    sugarTime_dict['e_time.sample'] = lp.down_sample2(sugarTime_dict, 'e_time', sample_rate)
+
+    #sugar_dict['morning.sample'] = lp.down_sample2(sugar_dict, 'morning', 15)
+    #sugar_dict['evening.sample'] = lp.down_sample2(sugar_dict, 'evening', 15)
+
+    ##      clean up the dicts for things we're not going to graph
     del sugar_dict['daily.avg']
     #del sugar_dict['morning']
     #del sugar_dict['evening']
     del sugar2_dict['morning']
     del sugar2_dict['evening']
 
-    #pressure_h_avg_list = one_list_rolling_avg(pressure_h_list)
-    #pressure_l_avg_list = one_list_rolling_avg(pressure_l_list)
-    pressure_h_sample_list = down_sample2(pressure_dict, 'high', 5)
-    pressure_l_sample_list = down_sample2(pressure_dict, 'low', 5)
-
-    #pressure_dict['high rolling avg'] = [range(0, len(pressure_h_avg_list)), pressure_h_avg_list]
-    #pressure_dict['low rolling avg'] = [range(0, len(pressure_l_avg_list)), pressure_l_avg_list]
-    pressure_dict['high.sample'] = pressure_h_sample_list
-    pressure_dict['low.sample'] = pressure_l_sample_list
-
-    #weight_avg_list = one_list_rolling_avg(weight_list)
-    #weight_dict['rolling avg'] = [range(0, len(weight_avg_list)), weight_avg_list]
 
     bmi_list = []
     height = (6*12) + 2
     for this_weight in weight_list:
-        bmi_list.append(calc_bmi(height, this_weight))
+        bmi_list.append(lp.calc_bmi(height, this_weight))
     bmi_dict['bmi'] = [range(0, len(bmi_list)), bmi_list]
     bmi2_dict['bmi'] = [date_list, bmi_list]
 
@@ -194,128 +218,6 @@ def extract_data(this_file):
 
     return weight_dict, pressure_dict, sugar_dict
 
-def calc_bmi(height, weight):
-    return (float(weight) * 703.0) / (float(height)**2)
-
-def numpy_polyfit(xes, yes, pts):
-    import numpy as np
-    x = np.array(xes)
-    y = np.array(yes)
-    scale = len(x) / 30
-    p = np.polyfit(x, y, pts)
-    ox = range(1, len(x)-scale, scale)
-    oy = list(p)
-
-    #print('ox: {0}'.format(len(ox)))
-    #print('oy: {0}'.format(len(oy)))
-    return ox, oy
-
-def two_list_avg(first_list, second_list):
-    avg_list = []
-    f = len(first_list)
-    s = len(second_list)
-    if f > s:
-        diff = f - s
-        #print('f > s: {0}'.format(diff))
-        for x in range(1, diff):
-            p = s + x
-            #print p
-            second_list.append(first_list[p])
-            #print('appending {0} to position {1}'.format(first_list[p-1], p))
-    elif f < s:
-        diff = s - f
-        #print('s > f: {0}'.format(diff))
-        for x in range(1, diff+1):
-            p = f + x
-            #print p
-            first_list.append(second_list[p - 1])
-            #print('appending {0} to position {1}'.format(second_list[p-1], p))
-
-    f = len(first_list)
-    s = len(second_list)
-    if f == s:
-        for x in range(0, len(first_list)):
-            myAvg = (float(first_list[x]) + float(second_list[x])) / float(2)
-            #print('avg: {0}'.format(myAvg))
-            avg_list.append(myAvg)
-
-    return avg_list
-
-def normalize_two_lists(first_list, second_list):
-    f = len(first_list)
-    s = len(second_list)
-    if f > s:
-        #print('first list is longer')
-        diff = f - s
-        #print('diff = {0}'.format(diff))
-        for x in range(0, diff):
-            #print('x: {0}'.format(x))
-            p = s + x
-            #print('p: {0}'.format(p))
-            #print('appending: {0}'.format(first_list[p]))
-            second_list.append(first_list[p])
-    elif f < s:
-        #print('second list is longer')
-        diff = s - f
-        #print('diff = {0}'.format(diff))
-        for x in range(0, diff):
-            print('x: {0}'.format(x))
-            p = f + x
-            #print('p: {0}'.format(p))
-            #print('appending: {0}'.format(second_list[p]))
-            first_list.append(second_list[p])
-    f = len(first_list)
-    s = len(second_list)
-    if f == s:
-        print('successful normalization')
-    return first_list, second_list
-
-def one_list_rolling_avg(this_list):
-    avg_list = []
-    l = len(this_list)
-    rolling = 0
-    y = 1 
-    total = 0
-    for x in range(0,l):
-        total = total + float(this_list[x])
-        this_avg = float(total) / float(y)
-        #this_avg = float(this_list[x]) + float(rolling) / float(2)
-        y+=1
-        #rolling = this_avg
-        avg_list.append(this_avg)
-    return avg_list
-
-def two_list_rolling_avg(first_list, second_list):
-    avg_list = []
-    f = len(first_list)
-    s = len(second_list)
-    #print('f: {0}'.format(f))
-    #print('s: {0}'.format(s))
-    if f > s:
-        diff = f - s
-        #print('d: {0}'.format(diff))
-        for x in range(1, diff+1):
-            p = s + x
-            #print('p: {0}'.format(p))
-            second_list.append(first_list[p-1])
-    elif f < s:
-        diff = s - f
-        #print('d: {0}'.format(diff))
-        for x in range(1, diff+1):
-            p = f + x
-            #print('p: {0}'.format(p))
-            first_list.append(second_list[p-1])
-    f = len(first_list)
-    s = len(second_list)
-    #print('f: {0}'.format(f))
-    #print('s: {0}'.format(s))
-    if f == s:
-        rolling = 0
-        for x in range(0, f):
-            thisAvg = (float(first_list[x]) + float(second_list[x]) + float(rolling)) / float(3)
-            #print('avg: {0}'.format(thisAvg))
-            avg_list.append(thisAvg)
-    return avg_list
 
 def writeToJson(thisDict, filepath):
     import json
@@ -324,75 +226,11 @@ def writeToJson(thisDict, filepath):
         json.dump(thisDict, fp, indent=4, sort_keys=True)
     return os.path.exists(filepath)
 
-def down_sample(this_dict, key, target_samples):
-    import math
-    #print('len x_values: {0}'.format(len(this_dict[key][0])))
-    divisions = math.ceil((len(this_dict[key][1])) / float(target_samples))
-    if int(divisions) == 0:
-        divisions = 1.0
-    #print('divisions: {0}'.format(divisions))
-    x_samples = range(this_dict[key][0][0], this_dict[key][0][-1], int(divisions))
-    x_samples.append(this_dict[key][0][-1])
-    #print('len x_samples: {0}'.format(len(x_samples)))
-    y_samples = []
-    i = 0
-    for this_val in range(1,len(this_dict[key][1])):
-        if (i % int(divisions)) == 0:
-            y_samples.append(this_dict[key][1][this_val])
-        i+=1
-    y_samples.append(this_dict[key][1][-1])
-    #print('len y_samples: {0}'.format(len(y_samples)))
-    sample_dict = {(key + ".sample"): [x_samples, y_samples]}
-    return [x_samples, y_samples]
-    #return sample_dict
-
-def down_sample2(this_dict, key, incr):
-    print(key)
-    print('len x_values: {0}'.format(len(this_dict[key][0])))
-    print('len y_values: {0}'.format(len(this_dict[key][-1])))
-    if len(this_dict[key][0]) != len(this_dict[key][-1]):
-        calc_start = len(this_dict[key][0]) - len(this_dict[key][-1])
-        this_dict[key][0] = this_dict[key][0][calc_start:]
-        print(this_dict[key][0])
-    i = 0
-    accumulator = 0.0
-    x_samples = []
-    y_samples = []
-    first_value = True
-    last_value = False
-    for this_y in this_dict[key][-1]:
-        if first_value:
-            x_samples.append(this_dict[key][0][0])
-            y_samples.append(this_dict[key][1][0])
-            first_value = False
-        elif i % incr == 0:
-            #print('accumulate: {0}'.format(this_y))
-            accumulator += this_y
-            #print('\navg: {0}'.format(accumulator / float(incr)))
-            x_samples.append(this_dict[key][0][i])
-            y_samples.append(accumulator / float(incr))
-            #print('new sample: x:{0} y:{1}\n\n'.format(i, accumulator / float(incr)))
-            accumulator = 0
-            last_value = False
-        else:
-            #print('accumulate: {0}'.format(this_y))
-            accumulator += this_y
-            last_value = True
-        i += 1
-        #print('orig data: x:{0} y:{1}'.format(i, this_y))
-    if last_value:
-        x_samples.append(this_dict[key][0][-1])
-        y_samples.append(this_dict[key][-1][-1])
-
-    #print('len of x_samples: {0}'.format(len(x_samples)))
-    #print('len of y_samples: {0}'.format(len(y_samples)))
-    return [x_samples, y_samples]
-
 if __name__ == '__main__':
     #extract_data('/home/james/scripts/statsChart/stats_test_data.txt')
     data_file = '/home/james/scripts/statsChart/data/blood_sugar_all.txt'
     if os.path.exists(data_file):
-        extract_data(data_file)
+        extract_data(data_file, sample_rate=7)
     else:
         print('no data file found')
 
