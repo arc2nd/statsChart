@@ -127,6 +127,7 @@ def extract_data(this_file, sample_rate=7):
     pressure2_path = 'pressure2_{0}.json'.format(fmt_today)
     sugar_path = 'sugar_{0}.json'.format(fmt_today)
     sugar2_path = 'sugar2_{0}.json'.format(fmt_today)
+    sugarTime_path = 'sugarT_{0}.json'.format(fmt_today)
     bmi_path = 'bmi_{0}.json'.format(fmt_today)
     bmi2_path = 'bmi2_{0}.json'.format(fmt_today)
 
@@ -214,6 +215,7 @@ def extract_data(this_file, sample_rate=7):
     writeToJson(weight2_dict, weight2_path)
     writeToJson(pressure2_dict, pressure2_path)
     writeToJson(sugar2_dict, sugar2_path)
+    writeToJson(sugarTime_dict, sugarTime_path)
     writeToJson(bmi2_dict, bmi2_path)
 
     return weight_dict, pressure_dict, sugar_dict
