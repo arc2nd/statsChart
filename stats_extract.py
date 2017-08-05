@@ -127,7 +127,7 @@ def extract_data(this_file, sample_rate=7):
     pressure2_path = 'pressure2_{0}.json'.format(fmt_today)
     sugar_path = 'sugar_{0}.json'.format(fmt_today)
     sugar2_path = 'sugar2_{0}.json'.format(fmt_today)
-    sugarTime_path = 'sugarT_{0}.json'.format(fmt_today)
+    sugarTime_path = 'sugarTime2_{0}.json'.format(fmt_today)
     bmi_path = 'bmi_{0}.json'.format(fmt_today)
     bmi2_path = 'bmi2_{0}.json'.format(fmt_today)
 
@@ -168,6 +168,8 @@ def extract_data(this_file, sample_rate=7):
     ##      average the morning and evening sugar together and then sample it
     sugar_avg_list = lp.two_list_avg(sm_norm_list, se_norm_list)
     sugar_dict['daily.avg'] = [range(0, len(sugar_avg_list)), sugar_avg_list]
+    sugar2_dict['daily.avg'] = [date_list, sugar_avg_list]
+    sugar2_dict['daily.avg.sample'] = lp.down_sample2(sugar2_dict, 'daily.avg', sample_rate)
     sugar_sample_list = lp.down_sample2(sugar_dict, 'daily.avg', sample_rate)
     sugar_dict['daily.avg.sample'] = sugar_sample_list
 
@@ -181,7 +183,7 @@ def extract_data(this_file, sample_rate=7):
     for this_time in sugar_mTime_list:
         morning_deltas_list.append(lp.time_delta(this_time, '6.30')) ##reference time is six thirty in the morning
     for this_time in sugar_eTime_list:
-        evening_deltas_list.append(lp.time_delta(this_time, '18.30')) ##reference time is six thirty in the evening
+        evening_deltas_list.append(lp.time_delta(this_time, '17.30')) ##reference time is six thirty in the evening
     sugarTime_dict['m_time'] = [date_list, morning_deltas_list]
     sugarTime_dict['e_time'] = [date_list, evening_deltas_list]
 
@@ -193,11 +195,13 @@ def extract_data(this_file, sample_rate=7):
     #sugar_dict['evening.sample'] = lp.down_sample2(sugar_dict, 'evening', 15)
 
     ##      clean up the dicts for things we're not going to graph
-    del sugar_dict['daily.avg']
+    del sugar2_dict['daily.avg']
     #del sugar_dict['morning']
     #del sugar_dict['evening']
     del sugar2_dict['morning']
     del sugar2_dict['evening']
+    del sugarTime_dict['m_time']
+    del sugarTime_dict['e_time']
 
 
     bmi_list = []
@@ -215,6 +219,7 @@ def extract_data(this_file, sample_rate=7):
     writeToJson(weight2_dict, weight2_path)
     writeToJson(pressure2_dict, pressure2_path)
     writeToJson(sugar2_dict, sugar2_path)
+    writeToJson(sugarTime_dict, sugarTime_path)
     writeToJson(sugarTime_dict, sugarTime_path)
     writeToJson(bmi2_dict, bmi2_path)
 
