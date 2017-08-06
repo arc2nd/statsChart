@@ -83,7 +83,7 @@ def normalize_two_lists(first_list, second_list):
         diff = s - f
         #print('diff = {0}'.format(diff))
         for x in range(0, diff):
-            print('x: {0}'.format(x))
+            #print('x: {0}'.format(x))
             p = f + x
             #print('p: {0}'.format(p))
             #print('appending: {0}'.format(second_list[p]))
@@ -170,7 +170,7 @@ def down_sample2(this_dict, key, incr):
     if len(this_dict[key][0]) != len(this_dict[key][-1]):
         calc_start = len(this_dict[key][0]) - len(this_dict[key][-1])
         this_dict[key][0] = this_dict[key][0][calc_start:]
-        print(this_dict[key][0])
+        #print(this_dict[key][0])
     i = 0
     accumulator = 0.0
     x_samples = []

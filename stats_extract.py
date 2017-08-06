@@ -11,6 +11,8 @@
 import os
 import re
 import datetime
+import calendar
+import pymongo
 
 import listProcessing as lp
 
@@ -31,6 +33,13 @@ def extract_data(this_file, sample_rate=7):
     pressure = None
     time = None
     val = None
+
+    client = pymongo.MongoClient()
+    db = client.healthStats
+    weights = db.weight
+    pressure_hs = db.pressure_h
+    pressure_ls = db.pressure_l
+    sugars = db.sugar
 
     date_pattern = '(?P<date>\d+-\d+-\d+)'
     weight_pattern = '(?P<weight>\(\d+.\d+\))'
@@ -76,47 +85,67 @@ def extract_data(this_file, sample_rate=7):
         if date_match:
             date = date_match.groupdict()['date']
             date_list.append(str(date))
-            print('Date: {0}'.format(str(date)))
             morning_val = 0
             evening_val = 0
+
+            month, day, year = date.split('-')
+            day = int(day)
+            month = int(month)
+            if len(year) == 2:
+                year = int('20{0}'.format(year))
+            else:
+                year = int(year)
+            dt = datetime.datetime(year, month, day)
+            ts = calendar.timegm(dt.timetuple())
+            print('Date: {0}'.format(str(ts)))
         if weight_match:
             weight = weight_match.groupdict()['weight']
             if weight.startswith('('):
                 weight = weight[1:]
             if weight.endswith(')'):
                 weight = weight[:-1]
-            print('\tWeight: {0}'.format(weight))
-            #weight_dict[date] = weight
+            #print('\tWeight: {0}'.format(weight))
+            mongo_weight_dict = {'date': ts, 'value':  weight}
+            if not weights.find( mongo_weight_dict ).count():
+                weights.insert_one( mongo_weight_dict )
+                print('inserted weight: {0}'.format(weight))
             weight_list.append(float(weight))
-            #weight2_dict[date] = weight
         if blood_pressure_match:
             pressure = blood_pressure_match.groupdict()['pressure']
             if pressure.endswith('\\n'):
                 pressure = pressure[:-2]
-            print('\tPressure: {0}'.format(pressure))
-            #pressure_dict[date] = pressure
+            #print('\tPressure: {0}'.format(pressure))
             pressure_h, pressure_l = pressure.split('-')
             pressure_h_list.append(float(pressure_h))
             pressure_l_list.append(float(pressure_l))
-            #pressure2_dict[date] = [pressure_h, pressure_l]
+
+            mongo_pressure_h_dict = {'date': ts, 'value': pressure_h}
+            mongo_pressure_l_dict = {'date': ts, 'value': pressure_l}
+            if not pressure_hs.find( mongo_pressure_h_dict ).count():
+                pressure_hs.insert_one( mongo_pressure_h_dict )
+            if not pressure_ls.find( mongo_pressure_l_dict ).count():
+                pressure_ls.insert_one( mongo_pressure_l_dict )
         if blood_sugar_match:
             time = blood_sugar_match.groupdict()['time']
             val = blood_sugar_match.groupdict()['val']
-            print('\tSugar: {0},{1}'.format(time,val))
+            #print('\tSugar: {0},{1}'.format(time,val))
+            mongo_sugar_dict = {'date': ts, 'time': time, 'value': val}
+            if not sugars.find( mongo_sugar_dict ).count():
+                sugars.insert_one( mongo_sugar_dict )
             if len(time) < 5:
                 sugar_mTime_list.append(time)
-                #sugar_morning_dict[date] = val
                 sugar_morning_list.append(int(val))
                 morning_val = val
             if len(time) >=5:
                 sugar_eTime_list.append(time)
-                #sugar_evening_dict[date] = val
                 sugar_evening_list.append(int(val))
                 evening_val = val
             #if morning_val != 0 and evening_val != 0:
             #    sugar2_dict[date] = [morning_val, evening_val]
 
         #print('Date: {0}, Weight: {1}, Pressure: {2}, Sugar: {3}'.format(date, weight, pressure, '{0},{1}'.format(time,val)))
+
+    print('{0} total dates'.format(len(date_list)))
 
     ##Set up some variables
     today = datetime.date.today()
