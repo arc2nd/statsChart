@@ -42,27 +42,12 @@ from PyQt4 import QtGui, QtCore
 #for doc in cur:
 #    pprint(doc)
 
-def statToMongo(collection, date, weight=0, pressure_h=0, pressure_l=0, sugar_m_time=0.00, sugar_m=0, sugar_e_time=0.00, sugar_e=0):
-    month, day, year = date.split('-')
-    day = int(day)
-    month = int(month)
-    if len(year) == 2:
-        year = int('20{0}'.format(year))
+def stat_to_mongo(collection=None, value_dict=None):
+    if not collection.find( value_dict ).count():
+        rec_id = collection.insert_one( value_dict )
+        return rec_id.inserted_id
     else:
-        year = int(year)
-    dt = datetime.datetime(year, month, day)
-    ts = calendar.timegm(dt.timetuple())
-    recordDict = {  'date': ts,
-                    'weight': float(weight),
-                    'pressure_h': int(pressure_h),
-                    'pressure_l': int(pressure_l),
-                    'sugar_m_time': float(sugar_m_time),
-                    'sugar_m': int(sugar_m),
-                    'sugar_e_time': float(sugar_e_time),
-                    'sugar_e': int(sugar_e)
-                 }
-    rec_id, status = collection.insert_one(recordDict)
-    return rec_id, status
+        print('already found: {0} in DB\nDon\'t want to make a duplicate'.format(value_dict))
 
 
 class statToMongo_UI(QtGui.QMainWindow):
@@ -84,16 +69,16 @@ class statMainWidget(QtGui.QWidget):
         super(statMainWidget, self).__init__()
         client = pymongo.MongoClient()
         db = client.healthStats
-        self.weights = db.weight
-        self.pressure_hs = db.pressure_h
-        self.pressure_ls = db.pressure_l
-        self.sugars = db.sugar
+        self.weight = db.weight
+        self.pressure_h = db.pressure_h
+        self.pressure_l = db.pressure_l
+        self.sugar = db.sugar
 
         self.date_dict = {}
-        self.weights_dict = {}
-        self.pressure_hs_dict = {}
-        self.pressure_ls_dict = {}
-        self.sugars_dict = {}
+        self.weight_dict = {}
+        self.pressure_h_dict = {}
+        self.pressure_l_dict = {}
+        self.sugar_dict = {}
 
         self.ml = QtGui.QFormLayout()
 
@@ -134,7 +119,7 @@ class statMainWidget(QtGui.QWidget):
         if date:
             self.date_dict = {'date': date}
             if weight:
-                self.weights_dict = {'date': date, 'value': weight}
+                self.weight_dict = {'date': date, 'value': weight}
             if pressure_h and pressure_l:
                 self.pressure_h_dict = {'date': date, 'value': pressure_h}
                 self.pressure_l_dict = {'date': date, 'value': pressure_l}
@@ -143,24 +128,20 @@ class statMainWidget(QtGui.QWidget):
         else:
             print('Can\'t find date. Can\'t submit')
 
-        pprint(self.date_dict)
-        pprint(self.weights_dict)
-        pprint(self.pressure_h_dict)
-        pprint(self.pressure_l_dict)
-        pprint(self.sugar_dict)
+        #pprint(self.date_dict)
+        #pprint(self.weight_dict)
+        #pprint(self.pressure_h_dict)
+        #pprint(self.pressure_l_dict)
+        #pprint(self.sugar_dict)
 
     def submit(self):
         self.collect()
 
-        if not self.sugars.find(sugar_dict).count():
-            self.sugars.insert_one( sugar_dict )
-        if not self.pressure_hs.find(pressure_h_dict).count():
-            self.pressure_hs.insert_one( pressure_h_dict )
-        if not self.pressure_ls.find(pressure_l_dict).count():
-            self.pressure_ls.insert_one( pressure_l_dict )
-        if not self.weights.find(weight_dict).count()
-            self.weigths.insert_one( weight_dict )
-
+        stat_to_mongo(self.sugar, self.sugar_dict)
+        stat_to_mongo(self.weight, self.weight_dict)
+        stat_to_mongo(self.pressure_l, self.pressure_l_dict)
+        stat_to_mongo(self.pressure_h, self.pressure_h_dict)
+        print('submitted')
 
 
 class dateWidget(QtGui.QWidget):
@@ -193,6 +174,7 @@ class dateWidget(QtGui.QWidget):
         ts = calendar.timegm(dt.timetuple())
         return ts
 
+
 class weightWidget(QtGui.QWidget):
     def __init__(self, parent=None):
         super(weightWidget, self).__init__()
@@ -203,6 +185,7 @@ class weightWidget(QtGui.QWidget):
 
     def get_value(self):
         return str(self.weightEdit.text())
+
 
 class pressureWidget(QtGui.QWidget):
     def __init__(self, parent=None):
@@ -219,6 +202,7 @@ class pressureWidget(QtGui.QWidget):
     def get_value(self):
         return [str(self.pressureHighEdit.text()), str(self.pressureLowEdit.text())]
 
+
 class sugarWidget(QtGui.QWidget):
     def __init__(self, parent=None):
         super(sugarWidget, self).__init__()
@@ -231,7 +215,10 @@ class sugarWidget(QtGui.QWidget):
         self.setLayout(self.layout)
 
     def get_value(self):
-        return [str(self.sugarTimeEdit.time()), str(self.sugarValueEdit.text())]
+        q_time = self.sugarTimeEdit.time()
+        txtTime = '{0}.{1}'.format(q_time.hour(), q_time.minute())
+        return [str(txtTime), str(self.sugarValueEdit.text())]
+
 
 if __name__ == '__main__':
     #make an app
