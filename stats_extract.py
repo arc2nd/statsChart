@@ -227,6 +227,7 @@ def extract_data(this_file, sample_rate=7):
     del sugar2_dict['daily.avg']
     #del sugar_dict['morning']
     #del sugar_dict['evening']
+    del sugar_dict['daily.avg']
     del sugar2_dict['morning']
     del sugar2_dict['evening']
     del sugarTime_dict['m_time']

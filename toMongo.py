@@ -9,17 +9,17 @@ import calendar
 import pymongo
 
 from PyQt4 import QtGui, QtCore
-
+import widgets as wdg
 ######################
 ##MongoDB structure
 ######################
-##SUGARS
+##SUGAR
 ##_id, date, time, value
-##WEIGHTS
+##WEIGHT
 ##_id, date, value
-##PRESSURE_LS
+##PRESSURE_L
 ##_id, date, value
-##PRESSURE_HS
+##PRESSURE_H
 ##_id, date, value
 
 ######################
@@ -82,10 +82,10 @@ class statMainWidget(QtGui.QWidget):
 
         self.ml = QtGui.QFormLayout()
 
-        self.date_edit = dateWidget()
-        self.weight_edit = weightWidget()
-        self.pressure_edit = pressureWidget()
-        self.sugar_edit = sugarWidget()
+        self.date_edit = wdg.dateWidget()
+        self.weight_edit = wdg.weightWidget()
+        self.pressure_edit = wdg.pressureWidget()
+        self.sugar_edit = wdg.sugarWidget()
 
         button_layout = QtGui.QHBoxLayout()
         print_button = QtGui.QPushButton('Print')
@@ -128,11 +128,11 @@ class statMainWidget(QtGui.QWidget):
         else:
             print('Can\'t find date. Can\'t submit')
 
-        #pprint(self.date_dict)
-        #pprint(self.weight_dict)
-        #pprint(self.pressure_h_dict)
-        #pprint(self.pressure_l_dict)
-        #pprint(self.sugar_dict)
+        pprint(self.date_dict)
+        pprint(self.weight_dict)
+        pprint(self.pressure_h_dict)
+        pprint(self.pressure_l_dict)
+        pprint(self.sugar_dict)
 
     def submit(self):
         self.collect()
@@ -142,82 +142,6 @@ class statMainWidget(QtGui.QWidget):
         stat_to_mongo(self.pressure_l, self.pressure_l_dict)
         stat_to_mongo(self.pressure_h, self.pressure_h_dict)
         print('submitted')
-
-
-class dateWidget(QtGui.QWidget):
-    def __init__(self, parent=None):
-        super(dateWidget, self).__init__()
-        self.layout = QtGui.QHBoxLayout()
-        #self.dateEdit = QtGui.QLineEdit()
-        self.dateEdit = QtGui.QDateEdit(datetime.date.today())
-        self.dateEdit.calendarPopup()
-        self.dateEdit.setDisplayFormat('yyyy.MM.dd')
-        self.layout.addWidget(self.dateEdit)
-        self.setLayout(self.layout)
-
-    def get_value(self):
-        #return str(self.dateEdit.text())
-        return self.dateEdit.date()
-
-    def get_timestamp(self, split_char=None):
-        import datetime
-        import calendar
-        q_date = self.get_value()
-        day = int(q_date.day())
-        month = int(q_date.month())
-        year = str(q_date.year())
-        if len(year) == 2:
-            year = int('20{0}'.format(year))
-        else:
-            year = int(year)
-        dt = datetime.datetime(year, month, day)
-        ts = calendar.timegm(dt.timetuple())
-        return ts
-
-
-class weightWidget(QtGui.QWidget):
-    def __init__(self, parent=None):
-        super(weightWidget, self).__init__()
-        self.layout = QtGui.QHBoxLayout()
-        self.weightEdit = QtGui.QLineEdit()
-        self.layout.addWidget(self.weightEdit)
-        self.setLayout(self.layout)
-
-    def get_value(self):
-        return str(self.weightEdit.text())
-
-
-class pressureWidget(QtGui.QWidget):
-    def __init__(self, parent=None):
-        super(pressureWidget, self).__init__()
-        self.layout = QtGui.QHBoxLayout()
-        self.pressureHighEdit = QtGui.QLineEdit()
-        self.pressureHighEdit.setPlaceholderText('high')
-        self.pressureLowEdit = QtGui.QLineEdit()
-        self.pressureLowEdit.setPlaceholderText('low')
-        self.layout.addWidget(self.pressureHighEdit)
-        self.layout.addWidget(self.pressureLowEdit)
-        self.setLayout(self.layout)
-
-    def get_value(self):
-        return [str(self.pressureHighEdit.text()), str(self.pressureLowEdit.text())]
-
-
-class sugarWidget(QtGui.QWidget):
-    def __init__(self, parent=None):
-        super(sugarWidget, self).__init__()
-        self.layout = QtGui.QHBoxLayout()
-        self.sugarTimeEdit = QtGui.QTimeEdit(datetime.datetime.now().time())
-        self.sugarTimeEdit.setDisplayFormat('HH:mm')
-        self.sugarValueEdit = QtGui.QLineEdit()
-        self.layout.addWidget(self.sugarTimeEdit)
-        self.layout.addWidget(self.sugarValueEdit)
-        self.setLayout(self.layout)
-
-    def get_value(self):
-        q_time = self.sugarTimeEdit.time()
-        txtTime = '{0}.{1}'.format(q_time.hour(), q_time.minute())
-        return [str(txtTime), str(self.sugarValueEdit.text())]
 
 
 if __name__ == '__main__':
