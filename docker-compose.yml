@@ -1,0 +1,19 @@
+version: '3.1'
+services:
+  statsChart:
+    image: stats_chart:latest
+    container_name: stats_rest
+    restart: unless-stopped
+    # network_mode: 'host'
+    ports:
+      - 8580:80
+    volumes:
+      - /mnt/statsChart:/data
+  mongo:
+    image: mongo
+    container_name: stats_mongo
+    restart: unless-stopped
+    ports: 
+      - 27017:27017
+    volumes:
+      - /mnt/statsChart/mongo:/data/db

@@ -1,0 +1,9 @@
+click
+Flask
+flask_restful
+itsdangerous
+Jinja2
+MarkupSafe
+uWSGI
+Werkzeug
+pymongo
